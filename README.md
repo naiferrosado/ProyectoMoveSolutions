@@ -6,7 +6,7 @@ Bienvenido a **Move Solutions**, una aplicación de escritorio moderna que trans
 
 ## 📘 Descripción General
 
-Move Solutions está desarrollada en **Visual Basic .NET** usando **WinForms**, **Entity Framework Core** y **SQL Server**, bajo una robusta **arquitectura en capas (GUI – BLL – DAL – Entidades)**. Permite la gestión integral de clientes, empleados, vehículos, mudanzas, inventarios, pagos, facturación y reportes mediante una interfaz intuitiva y confiable.
+Move Solutions está desarrollada en **C#/Visual Basic .NET** usando **WinForms**, **Entity Framework Core** y **SQL Server**, bajo una robusta **arquitectura en capas (GUI – BLL – DAL – Entidades)**. Permite la gestión integral de clientes, empleados, vehículos, mudanzas, inventarios, pagos, facturación y reportes mediante una interfaz intuitiva y confiable.
 
 ---
 
@@ -103,7 +103,7 @@ Con relaciones, restricciones, contraseñas cifradas y control de roles.
 
 ## 🖥 Tecnologías Utilizadas
 
-- Visual Basic .NET
+- C#/Visual Basic .NET
 - WinForms
 - SQL Server
 - Entity Framework Core
