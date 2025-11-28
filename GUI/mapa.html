@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; overflow: hidden; }
+        #map { 
+            height: 100vh; 
+            width: 100%; 
+        }
+        
+        /* Panel de selección de rutas */
+        .route-selector {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 300px;
+            display: none;
+        }
+
+        .route-selector.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .route-selector h3 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .route-option {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .route-option:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+            transform: translateX(-3px);
+        }
+
+        .route-option.selected {
+            border-color: #3b82f6;
+            background: #dbeafe;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .route-name {
+            font-weight: bold;
+            color: #1e40af;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .route-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .route-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .route-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .badge-fastest {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-shortest {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-alternative {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Panel inferior discreto */
+        .info-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .info-group {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            font-size: 13px;
+        }
+        
+        .info-item .icon {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .info-item .label {
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 500;
+        }
+        
+        .info-item .value {
+            color: white;
+            font-weight: 600;
+        }
+        
+        .btn-clear {
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-clear:hover { 
+            background: rgba(220, 53, 69, 1);
+            transform: translateY(-1px);
+        }
+        
+        .btn-clear:active {
+            transform: translateY(0);
+        }
+
+        /* Loading spinner */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 2000;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id='map'></div>
+    
+    <!-- Selector de rutas -->
+    <div class='route-selector' id='routeSelector'>
+        <h3>🛣️ Rutas Disponibles</h3>
+        <div id='routeOptions'></div>
+    </div>
+
+    <!-- Barra de información inferior -->
+    <div class='info-bar'>
+        <div class='info-group'>
+            <div class='info-item'>
+                <span class='icon'>🟢</span>
+                <span class='label'>Origen:</span>
+                <span class='value' id='origen-text'>--</span>
+            </div>
+            <div class='info-item'>
+                <span class='icon'>🔴</span>
+                <span class='label'>Destino:</span>
+                <span class='value' id='destino-text'>--</span>
+            </div>
+            <div class='info-item'>
+                <span class='icon'>📏</span>
+                <span class='label'>Distancia:</span>
+                <span class='value' id='distancia-text'>--</span>
+            </div>
+        </div>
+        <button class='btn-clear' onclick='limpiarMarcadores()'>
+            <span>🗑️</span>
+            <span>Limpiar</span>
+        </button>
+    </div>
+
+    <div class='loading' id='loading'>🔄 Calculando rutas...</div>
+
+    <script>
+        // Variables globales
+        let markerOrigen = null;
+        let markerDestino = null;
+        let routeLines = [];
+        let routes = [];
+        let selectedRouteIndex = 0;
+        let map = null;
+
+        // Inicializar mapa centrado en República Dominicana
+        map = L.map('map').setView([18.7357, -70.1627], 8);
+
+        // Agregar capa de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Iconos personalizados
+        const iconoVerde = L.divIcon({
+            html: '<div style="background-color: #10b981; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.3);"><div style="transform: rotate(45deg); margin-top: 5px; text-align: center; color: white; font-weight: bold; font-size: 14px;">A</div></div>',
+            className: 'custom-icon',
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+        });
+
+        const iconoRojo = L.divIcon({
+            html: '<div style="background-color: #ef4444; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.3);"><div style="transform: rotate(45deg); margin-top: 5px; text-align: center; color: white; font-weight: bold; font-size: 14px;">B</div></div>',
+            className: 'custom-icon',
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+        });
+
+        // Evento click en el mapa
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            
+            if (!markerOrigen) {
+                // Crear marcador de origen
+                markerOrigen = L.marker([lat, lng], { icon: iconoVerde }).addTo(map);
+                
+                const direccion = `Punto A (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+                document.getElementById('origen-text').textContent = direccion;
+                
+                // Enviar a VB.NET
+                console.log('Enviando origen:', direccion);
+                window.chrome.webview.postMessage({
+                    tipo: 'origen',
+                    direccion: direccion,
+                    lat: lat,
+                    lng: lng
+                });
+                
+            } else if (!markerDestino) {
+                // Crear marcador de destino
+                markerDestino = L.marker([lat, lng], { icon: iconoRojo }).addTo(map);
+                
+                const direccion = `Punto B (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+                document.getElementById('destino-text').textContent = direccion;
+                
+                // Enviar a VB.NET
+                console.log('Enviando destino:', direccion);
+                window.chrome.webview.postMessage({
+                    tipo: 'destino',
+                    direccion: direccion,
+                    lat: lat,
+                    lng: lng
+                });
+                
+                // Calcular rutas alternativas
+                calcularRutasAlternativas();
+            }
+        });
+
+        async function calcularRutasAlternativas() {
+            if (!markerOrigen || !markerDestino) return;
+
+            const latOrigen = markerOrigen.getLatLng().lat;
+            const lngOrigen = markerOrigen.getLatLng().lng;
+            const latDestino = markerDestino.getLatLng().lat;
+            const lngDestino = markerDestino.getLatLng().lng;
+
+            // Mostrar loading
+            document.getElementById('loading').classList.add('show');
+
+            try {
+                // Llamar al servicio OSRM con alternatives=true
+                const url = `https://router.project-osrm.org/route/v1/driving/${lngOrigen},${latOrigen};${lngDestino},${latDestino}?overview=full&geometries=geojson&alternatives=true`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.code === 'Ok' && data.routes.length > 0) {
+                    routes = data.routes;
+                    mostrarRutasEnSelector(routes);
+                    dibujarRuta(0); // Mostrar primera ruta por defecto
+                } else {
+                    console.error('No se pudo calcular las rutas');
+                    dibujarLineaRecta();
+                }
+
+            } catch (error) {
+                console.error('Error al calcular rutas:', error);
+                dibujarLineaRecta();
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        function mostrarRutasEnSelector(routesData) {
+            const selector = document.getElementById('routeSelector');
+            const optionsContainer = document.getElementById('routeOptions');
+            optionsContainer.innerHTML = '';
+
+            // Determinar cuál es la más rápida y más corta
+            let fastestIndex = 0;
+            let shortestIndex = 0;
+            let minDuration = Infinity;
+            let minDistance = Infinity;
+
+            routesData.forEach((route, index) => {
+                if (route.duration < minDuration) {
+                    minDuration = route.duration;
+                    fastestIndex = index;
+                }
+                if (route.distance < minDistance) {
+                    minDistance = route.distance;
+                    shortestIndex = index;
+                }
+            });
+
+            routesData.forEach((route, index) => {
+                const distanciaKm = (route.distance / 1000).toFixed(2);
+                const tiempoMinutos = Math.round(route.duration / 60);
+                
+                let badge = '';
+                let routeName = `Ruta ${index + 1}`;
+                
+                if (index === fastestIndex) {
+                    badge = '<span class="route-badge badge-fastest">⚡ Más Rápida</span>';
+                    routeName = 'Ruta Rápida';
+                } else if (index === shortestIndex) {
+                    badge = '<span class="route-badge badge-shortest">📏 Más Corta</span>';
+                    routeName = 'Ruta Corta';
+                } else {
+                    badge = '<span class="route-badge badge-alternative">🔄 Alternativa</span>';
+                }
+
+                const option = document.createElement('div');
+                option.className = 'route-option' + (index === 0 ? ' selected' : '');
+                option.innerHTML = `
+                    <div class="route-name">${routeName}</div>
+                    <div class="route-details">
+                        <div class="route-detail-item">
+                            <span>📏</span>
+                            <span>${distanciaKm} km</span>
+                        </div>
+                        <div class="route-detail-item">
+                            <span>🕐</span>
+                            <span>${tiempoMinutos} min</span>
+                        </div>
+                    </div>
+                    ${badge}
+                `;
+                
+                option.onclick = () => seleccionarRuta(index);
+                optionsContainer.appendChild(option);
+            });
+
+            selector.classList.add('show');
+        }
+
+        function seleccionarRuta(index) {
+            selectedRouteIndex = index;
+            
+            // Actualizar UI del selector
+            const options = document.querySelectorAll('.route-option');
+            options.forEach((opt, i) => {
+                opt.classList.toggle('selected', i === index);
+            });
+
+            // Dibujar la ruta seleccionada
+            dibujarRuta(index);
+        }
+
+        function dibujarRuta(index) {
+            // Limpiar rutas anteriores
+            routeLines.forEach(line => map.removeLayer(line));
+            routeLines = [];
+
+            const route = routes[index];
+            const coordinates = route.geometry.coordinates;
+            const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
+
+            // Dibujar la ruta seleccionada
+            const routeLine = L.polyline(latLngs, {
+                color: '#3b82f6',
+                weight: 5,
+                opacity: 0.8,
+                lineJoin: 'round'
+            }).addTo(map);
+
+            routeLines.push(routeLine);
+
+            // Dibujar rutas alternativas en gris
+            routes.forEach((r, i) => {
+                if (i !== index) {
+                    const coords = r.geometry.coordinates;
+                    const lls = coords.map(coord => [coord[1], coord[0]]);
+                    const altLine = L.polyline(lls, {
+                        color: '#94a3b8',
+                        weight: 3,
+                        opacity: 0.4,
+                        lineJoin: 'round'
+                    }).addTo(map);
+                    routeLines.push(altLine);
+                }
+            });
+
+            // Ajustar vista
+            map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+            // Actualizar información
+            const distanciaKm = (route.distance / 1000).toFixed(2);
+            const tiempoMinutos = Math.round(route.duration / 60);
+            document.getElementById('distancia-text').textContent = `${distanciaKm} km (${tiempoMinutos} min)`;
+
+            // Enviar a VB.NET
+            window.chrome.webview.postMessage({
+                tipo: 'distancia',
+                distancia: distanciaKm,
+                tiempo: tiempoMinutos,
+                rutaIndex: index
+            });
+        }
+
+        function dibujarLineaRecta() {
+            if (!markerOrigen || !markerDestino) return;
+
+            const latOrigen = markerOrigen.getLatLng().lat;
+            const lngOrigen = markerOrigen.getLatLng().lng;
+            const latDestino = markerDestino.getLatLng().lat;
+            const lngDestino = markerDestino.getLatLng().lng;
+
+            const distanciaMetros = map.distance([latOrigen, lngOrigen], [latDestino, lngDestino]);
+            const distanciaKm = (distanciaMetros / 1000).toFixed(2);
+
+            routeLines.forEach(line => map.removeLayer(line));
+            routeLines = [];
+
+            const routeLine = L.polyline([
+                [latOrigen, lngOrigen],
+                [latDestino, lngDestino]
+            ], {
+                color: '#ef4444',
+                weight: 4,
+                opacity: 0.7,
+                dashArray: '10, 10'
+            }).addTo(map);
+
+            routeLines.push(routeLine);
+            map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+
+            document.getElementById('distancia-text').textContent = distanciaKm + ' km (línea recta)';
+
+            window.chrome.webview.postMessage({
+                tipo: 'distancia',
+                distancia: distanciaKm
+            });
+        }
+
+        function limpiarMarcadores() {
+            if (markerOrigen) {
+                map.removeLayer(markerOrigen);
+                markerOrigen = null;
+            }
+            
+            if (markerDestino) {
+                map.removeLayer(markerDestino);
+                markerDestino = null;
+            }
+            
+            routeLines.forEach(line => map.removeLayer(line));
+            routeLines = [];
+            routes = [];
+
+            document.getElementById('origen-text').textContent = '--';
+            document.getElementById('destino-text').textContent = '--';
+            document.getElementById('distancia-text').textContent = '--';
+            document.getElementById('routeSelector').classList.remove('show');
+            
+            window.chrome.webview.postMessage({ tipo: 'limpiar' });
+        }
+
+        console.log('✓ Mapa con selector de rutas cargado correctamente');
+        window.chrome.webview.postMessage({ tipo: 'mapa_listo' });
+    </script>
+</body>
+</html>
