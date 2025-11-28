@@ -6,7 +6,7 @@ Bienvenido a **Move Solutions**, una aplicación de escritorio moderna que trans
 
 ## 📘 Descripción General
 
-Move Solutions está desarrollada en **C# / Visual Basic .NET** usando **WinForms**, **Entity Framework Core** y **SQL Server**, bajo una robusta **arquitectura en capas (GUI – BLL – DAL – Entidades)**. Permite la gestión integral de clientes, empleados, vehículos, mudanzas, inventarios, pagos, facturación y reportes mediante una interfaz intuitiva y confiable.
+Move Solutions está desarrollada en **Visual Basic .NET** usando **WinForms**, **Entity Framework Core** y **SQL Server**, bajo una robusta **arquitectura en capas (GUI – BLL – DAL – Entidades)**. Permite la gestión integral de clientes, empleados, vehículos, mudanzas, inventarios, pagos, facturación y reportes mediante una interfaz intuitiva y confiable.
 
 ---
 
@@ -103,7 +103,7 @@ Con relaciones, restricciones, contraseñas cifradas y control de roles.
 
 ## 🖥 Tecnologías Utilizadas
 
-- C# / Visual Basic .NET
+- Visual Basic .NET
 - WinForms
 - SQL Server
 - Entity Framework Core
@@ -128,7 +128,9 @@ Incluye plan de pruebas con más de 20 casos:
    `git clone https://github.com/naiferrosado/ProyectoMoveSolutions.git`
 2. Configura la base de datos SQL Server y actualiza la cadena de conexión en el proyecto.
 3. Restaura los paquetes NuGet y ejecuta las migraciones (EF Core).
-4. Compila y ejecuta la aplicación desde Visual Studio.
+4. Add-Migration InitialCreate -Project DAL.Migrations -StartupProject DAL.Migrations
+5. Update-Database -Project DAL.Migrations -StartupProject DAL.Migrations
+6. Compila y ejecuta la aplicación desde Visual Studio.
 
 ---
 
